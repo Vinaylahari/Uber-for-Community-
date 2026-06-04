@@ -1,0 +1,56 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function userDoc() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    function hasRole(role) {
+      return isSignedIn() && userDoc().data.role == role;
+    }
+
+    match /users/{userId} {
+      allow read: if isSignedIn() && (
+        request.auth.uid == userId ||
+        hasRole('admin') ||
+        hasRole('volunteer')
+      );
+      allow create: if isSignedIn() && request.auth.uid == userId;
+      allow update: if isSignedIn() && (
+        request.auth.uid == userId ||
+        hasRole('admin')
+      ) && (
+        !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role']) ||
+        hasRole('admin')
+      );
+      allow delete: if hasRole('admin');
+    }
+
+    match /volunteers/{volId} {
+      allow read: if isSignedIn();
+      allow write: if hasRole('admin') || (
+        hasRole('volunteer') && request.auth.uid == volId
+      );
+    }
+
+    match /requests/{requestId} {
+      allow read: if isSignedIn();
+      allow create: if hasRole('member') &&
+        request.resource.data.memberId == request.auth.uid;
+      allow update: if isSignedIn() && (
+        hasRole('admin') ||
+        (hasRole('member') && resource.data.memberId == request.auth.uid) ||
+        (hasRole('volunteer') && (
+          resource.data.status == 'pending' ||
+          resource.data.assignedVolunteerId == request.auth.uid
+        ))
+      );
+      allow delete: if hasRole('admin');
+    }
+  }
+}

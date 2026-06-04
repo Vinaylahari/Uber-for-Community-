@@ -1,0 +1,34 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Simplification for MVP. In production, tighten these rules based on roles.
+    
+    // Helper function to check if user is logged in
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Helper to check if user is admin (requires custom claims or fetching from users collection)
+    // For simplicity in MVP, we allow authenticated users to read/write, but restrict based on their UID where easy.
+    
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() && request.auth.uid == userId;
+      allow create: if isAuthenticated(); // To allow creating their own document on first login
+    }
+    
+    match /volunteers/{volunteerId} {
+      allow read: if isAuthenticated();
+      // Volunteers can update their own status
+      // Admins can update any
+      allow write: if isAuthenticated(); 
+    }
+    
+    match /requests/{requestId} {
+      allow read: if isAuthenticated();
+      // Members can create requests. Volunteers can update them. Admins can do anything.
+      allow write: if isAuthenticated();
+    }
+  }
+}
