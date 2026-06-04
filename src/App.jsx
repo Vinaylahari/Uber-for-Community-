@@ -27,7 +27,7 @@ function App() {
       <AuthProvider>
         <RequestProvider>
           <FcmBootstrap />
-          <Router>
+          <Router basename="/Uber-for-Community-">
             <Toaster position="top-center" toastOptions={{ duration: 4000 }} />
             <Routes>
               <Route path="/login" element={<Login />} />
